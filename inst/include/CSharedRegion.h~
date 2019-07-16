@@ -1,0 +1,270 @@
+#include <stdio.h>
+#include <sys/mman.h>
+#include <sys/file.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <semaphore.h>
+#include <errno.h>   
+
+/*! \brief Struct used for to store inputs from command line arguments using the getopt.h library
+ Struct used for to store inputs from command line arguments using the getopt.h library*/
+struct arg_list {
+	size_t 	matrixDimension ;	  /*! We assume a symmetric (square) matrix, so this is the row and column dimension */
+	bool 	weWantVectors  ;	  /*! Boolean used to tell MAGMA function that we do or dont want eigenvectors*/
+	int 	numGPUsWanted  ;	  /*! The number of GPUs to use - this will be checked against the number of GPUs present and truncated if need be*/
+	std::string       memName  ;  /*! The name of the shared memory region */
+	std::string       semName  ;  /*! the name of the locking semaphore used to message when the server has finshed with the memory area*/
+};
+
+// producer = MAGMA_EVD_CLIENT and consumer = MAGMA_EVD_SERVER
+typedef enum {MAGMA_EVD_CLIENT, MAGMA_EVD_SERVER} producerconsumer;
+#define PID_STR_SIZE 10
+
+/*!  Usage: Client program (e.g. R or R package) will launch the MAGMA_EVD_SERVER process, passing in the strings variable _memName and _semName for the server to mmap / signal with. 
+These strings should be of form: "/syevdxmemory_<PID_OF_CLIENT>" and "/sem_<PID_OF_CLIENT>"
+The client should also know the size of the matrix to be shared and pass that to the server.
+ */
+ // Defines "structure" of shared memory 
+class CSharedRegion {       
+public:
+    size_t _regionsize_bytes ;  // the size in bytes of the shared memory region double array, rounded up to the page size
+    size_t _numgpus ;
+	size_t _matrix_dim ;
+	double * _shm_base ; // base pointer to be shared - We will treat the shared area as a single area that we can 'map' whatever data structure into as we may want to redefine what is shared.
+    double * _vectors ;
+	double * _values ;	
+	int _r ;
+	char   * _memName ; // == "/syevdxmemory_<PID_OF_CLIENT>";
+	int 	_shm_fd ;  // shared memory file descriptor - I am currently closing this when the object is destroyed
+	std::string _datapathstring ;
+	producerconsumer _clientOrServer ; // Used to distingush if an object is the client (producer) or the server (consumer - consumes data to return syevd decomposition)
+	char   * _semName ; //  == "/sem_<PID_OF_CLIENT>"
+	sem_t  * _sem_id ;  // semaphore for locking region of memory 
+	char   PID_str[PID_STR_SIZE]  ; 
+	
+	
+	CSharedRegion(producerconsumer PC, struct arg_list main_args) 
+	{
+		this->_numgpus = main_args.numGPUsWanted ;
+		this->_clientOrServer = PC ;
+		if (this->_clientOrServer == MAGMA_EVD_CLIENT)  // this provides the matrix data (i.e. is the R process)
+		{
+			int pid_str_size ;
+			pid_str_size = sprintf(PID_str, "%ld", (long)getpid());
+			if (pid_str_size > PID_STR_SIZE) 
+				error_and_die("CSharedRegion() MAGMA_EVD_CLIENT Error: PID string overrun buffer. Increase PID_STR_SIZE");
+			
+			
+			this->_vectors = NULL ;
+			this->_values = NULL ;
+			this->_matrix_dim = main_args.matrixDimension ;
+			
+			size_t namesize = strlen(main_args.memName.c_str()) ;  // find the length of the input string
+			namesize += pid_str_size ;  // add the size of the PID string part
+			this->_memName = (char *) malloc(namesize+1) ;   // allocate the same size in our class variable
+			//this->_memName = memcpy( main_args.memName,  namesize ) ; // copy from input to our class variable		
+			sprintf(this->_memName, "%s_%s", main_args.memName.c_str(),this->PID_str );
+			
+			
+			this->_shm_fd = shm_open(this->_memName, O_CREAT | O_TRUNC | O_RDWR, 0600);
+			if (this->_shm_fd == -1)
+				error_and_die("CSharedRegion() MAGMA_EVD_CLIENT Error calling: shm_open");
+			
+			_regionsize_bytes = ((_matrix_dim * _matrix_dim) + _matrix_dim ) * sizeof(double);  // Has to fit an array of eigenvectors and a vector of eigenvalues 
+			int roundup_to = sysconf(_SC_PAGE_SIZE);
+			_regionsize_bytes = closestdivisible_bysize(_regionsize_bytes, roundup_to) ;  // round up from matrix +1 vector size to nearest page size
+			_r = ftruncate(this->_shm_fd, _regionsize_bytes);
+			if (_r != 0)
+				error_and_die("CSharedRegion() MAGMA_EVD_CLIENT Error calling:  ftruncate");
+			
+			
+			_shm_base = (double *) mmap(0, _regionsize_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, this->_shm_fd, 0);
+			if (_shm_base == MAP_FAILED)
+				error_and_die("CSharedRegion() Error calling:  mmap");
+			 
+			 /* close the shared memory segment as if it was a file */			  
+			//if (close(this->_shm_fd) == -1)
+			//	error_and_die("CSharedRegion() MAGMA_EVD_CLIENT Error calling: close(this->_shm_fd)\n");
+			
+			_vectors = _shm_base ;
+			_values  = _shm_base + (_matrix_dim * _matrix_dim) ;
+			
+			
+			size_t semnamesize = strlen(main_args.semName.c_str()) ;  // find the length of the input string
+			semnamesize += pid_str_size ;  // add the size of the PID string part
+			this->_semName = (char *) malloc(semnamesize+1) ;   // allocate the same size in our class variable
+			//memcpy( this->_semName, main_args.semName,  semnamesize ) ; // copy from input to our class variable
+			sprintf(this->_semName, "%s_%s", main_args.semName.c_str(),this->PID_str );
+			
+			_sem_id=sem_open(this->_semName, O_CREAT, S_IRUSR | S_IWUSR, 0);  // Open semaphore with an initial value of 0 (locked)
+			if (this->_sem_id == SEM_FAILED)
+				error_and_die("CSharedRegion() MAGMA_EVD_CLIENT Error calling: sem_open failed: sem_open()");
+			
+			if (sem_wait(this->_sem_id) != 0)
+				error_and_die("CSharedRegion() MAGMA_EVD_CLIENT Error calling: sem_wait()");
+			
+			
+			
+		}
+		else if (this->_clientOrServer == MAGMA_EVD_SERVER) // the input data consumer (although it also produces evdx results)
+		{
+			this->_vectors = NULL ;
+			this->_values = NULL ;
+			this->_matrix_dim = main_args.matrixDimension ;
+			
+			// N.B. main_args.memName and this->_semName will be fully qualified PID inclusive strins as they are passed in from the Client R process
+			
+			size_t namesize = strlen(main_args.memName.c_str()) ;  // find the length of the input string
+			this->_memName = (char *) malloc(namesize+1) ;   // allocate the same size in our class variable
+			memcpy( (void *) this->_memName, (const void *)main_args.memName.c_str(),   namesize ) ; // copy from input to our class variable		
+			
+			this->_shm_fd = shm_open(this->_memName, O_RDWR, 0600);
+			if (this->_shm_fd == -1)
+				error_and_die("CSharedRegion() MAGMA_EVD_SERVER Error calling: shm_open");
+			
+			_regionsize_bytes = (_matrix_dim * _matrix_dim) + _matrix_dim ;  // Has to fit an array of eigenvectors and a vector of eigenvalues 
+			int roundup_to = sysconf(_SC_PAGE_SIZE);
+			_regionsize_bytes = closestdivisible_bysize(_regionsize_bytes, roundup_to) ;  // round up to the page size
+			/*
+			r = ftruncate(this->_shm_fd, _regionsize_bytes);
+			if (r != 0)
+				error_and_die("CSharedRegion() MAGMA_EVD_SERVER Error calling:  ftruncate");
+			*/
+			
+			_shm_base = (double *) mmap(0, _regionsize_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, this->_shm_fd, 0);
+			if (_shm_base == MAP_FAILED)
+				error_and_die("CSharedRegion() Error calling:  mmap");
+			
+			/* close the shared memory segment as if it was a file */
+			//if (close(this->_shm_fd) == -1)
+			//	error_and_die("CSharedRegion() MAGMA_EVD_SERVER Error calling: close(this->_shm_fd)\n");
+			
+			_vectors = _shm_base ;
+			_values  = _shm_base + (_matrix_dim * _matrix_dim) ;
+			
+			// N.B. main_args.memName and this->_semName will be fully qualified name (i.e. inclusive of PID)
+			size_t semnamesize = strlen(main_args.semName.c_str()) ;  // find the length of the input string
+			this->_semName = (char *) malloc(semnamesize+1) ;   // allocate the same size in our class variable
+			memcpy( (void *)  this->_semName, (const void *)  main_args.semName.c_str(),  semnamesize ) ; // copy from input to our class variable
+			_sem_id=sem_open(this->_semName, 0);  // Open named semaphore (with oflag set to 0)
+			if (this->_sem_id == SEM_FAILED)
+				error_and_die("CSharedRegion() MAGMA_EVD_SERVER Error calling: sem_open()");
+			
+		}
+		
+		// If this is MAGMA_EVD_CLIENT then we have to go and launch the server process with the details we used to create the shared mem area and the named semaphore
+	}
+	
+	
+	/*! Destructor */
+	~CSharedRegion() 
+	{		
+			
+		/* close the shared memory segment as if it was a file */
+		if (close(this->_shm_fd) == -1)
+			error_and_die("CSharedRegion() MAGMA_EVD_CLIENT Error calling: close(this->_shm_fd)\n");
+			
+		if (munmap(this->_shm_base, _regionsize_bytes) != 0)
+			error_and_die("~CSharedRegion() error from: munmap()");
+		
+		if (this->_clientOrServer == MAGMA_EVD_CLIENT) 
+		{	
+			if (shm_unlink(_memName) != 0)
+			{
+				error_and_die("~CSharedRegion() error from: shm_unlink()");	
+			}
+		}
+		
+		//Semaphore Close: Close a named semaphore
+		if ( sem_close(_sem_id) < 0 )
+			error_and_die("~CSharedRegion() error from: sem_close()");
+		
+		if (this->_clientOrServer == MAGMA_EVD_CLIENT) 
+		{
+			//Semaphore unlink: Remove a named semaphore  from the system.
+			if ( sem_unlink(this->_semName) < 0 )
+			{
+				error_and_die("~CSharedRegion() error from: sem_unlink()");
+			}
+		}
+	
+		free(this->_memName) ;
+		free(this->_semName) ;
+		
+		_vectors = NULL ;
+		_values = NULL ;
+	}
+	
+	
+	// this is a client function - copies from R matrix memory into shared memory region
+	void copy_matrix_into_shmem(const void * in_ptr, size_t numbytes) 
+	{
+			
+		if (_vectors != NULL)
+		{
+			sem_wait(_sem_id);
+			memcpy(_vectors, in_ptr, numbytes ) ;  // copy original matrix data into shared memory area
+			sem_post(_sem_id);
+		}
+		else
+			error_and_die("copy_matrixinput() error: vectors shared memory area is NULL");
+		
+	}
+	
+	void copy_shmem_into_matrix(void * output_ptr, size_t numbytes, size_t offset_into_shmem) 
+	{			
+		if (_vectors != NULL)
+		{
+			sem_wait(_sem_id);
+			memcpy(output_ptr, this->_shm_base+(offset_into_shmem / sizeof(double)), numbytes ) ;  // copy original matrix data into shared memory area
+			sem_post(_sem_id);
+		}
+		else
+			error_and_die("copy_matrixinput() error: vectors shared memory area is NULL");
+		
+	}
+	
+	void error_and_die(const char *msg) 
+	{
+		printf("%s %s\n", msg, strerror(errno));
+		// perror(msg);
+		exit(EXIT_FAILURE);
+	}
+
+	/*
+	void get_exepath() 	
+	{
+		// Getting the path to the package kernel file (<packagedir>/include) can be fun
+		Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];
+		SEXP retvect = pathpackage_rcpp ("rcppMagmaSYEVD");  // use the R function in C++ 
+		_datapathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
+		// _oclcode_pathstring = "f:/R/R-3.2.2/library/Harman" ;
+		_datapathstring = _datapathstring +"/src" ;
+	}
+	
+	void make_exe() 	
+	{
+		// Getting the path to the package kernel file (<packagedir>/include) can be fun
+		Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];
+		SEXP retvect = pathpackage_rcpp ("rcppMagmaSYEVD");  // use the R function in C++ 
+		_datapathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
+		// _oclcode_pathstring = "f:/R/R-3.2.2/library/Harman" ;
+		_datapathstring = _datapathstring +"/src" ;
+	}
+	*/
+	
+	size_t closestdivisible_bysize(size_t inputsizeIN, size_t sizeIN)
+	{
+	  double result = 0 ;
+	  result = (double) inputsizeIN / (double) sizeIN ;
+	  result = ceil(result) ;
+	  return (size_t) ( result * sizeIN ) ;
+	}
+
+};
+

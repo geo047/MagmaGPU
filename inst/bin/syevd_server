@@ -1,0 +1,7 @@
+#! /bin/bash
+export MKL_INTERFACE_LAYER=ILP64
+export MKL_THREADING_LAYER=INTEL
+export MKL_NUM_THREADS=8
+# echo $0
+/home/bow355/R/library/rcppMagmaSYEVD/bin/syevd_server.exe $*
+
