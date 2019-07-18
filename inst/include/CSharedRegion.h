@@ -70,7 +70,7 @@ public:
 //  std::string * _memNameStr ;
 	int 	_shm_fd ;  // shared memory file descriptor - I am currently closing this when the object is destroyed
 	std::string _datapathstring ;
-	clientOrserver _clientOrServer ; // Used to distingush if an object is the client (producer) or the server (consumer - consumes data to return syevd decomposition)
+	clientOrserver _clientOrServer ; // Used to distingush if an object is the client (producer) or the server (consumer - consumes data to return dgeev_m decomposition)
 	char   * _semName ; //  == "/sem_<PID_OF_CLIENT>"
 	sem_t  * _sem_id ;  // semaphore for locking region of memory 
 //  std::string  _semNameStr ;
@@ -100,8 +100,8 @@ public:
 		this->_clientOrServer = PC ;
     
     // Logging 
-    logserver.append("/tmp/dsyevdx_server.log") ;
-    logclient.append("/tmp/dsyevdx_client.log") ;
+    logserver.append("/tmp/dgeev_server.log") ;
+    logclient.append("/tmp/dgeev_client.log") ;
     
   
 		if (this->_clientOrServer == MAGMA_EVD_CLIENT)  // this provides the matrix data (i.e. is the R process)
@@ -556,7 +556,7 @@ public:
     
     _PRINTSTD  <<  "_clientOrServer:  \t" ;
     if (_clientOrServer == MAGMA_EVD_CLIENT ) 
-        _PRINTSTD << " MAGMA_EVD_CLIENT " << "Count = " << count++ << std::endl ;  // Used to distingush if an object is the client (producer) or the server (consumer - consumes data to return syevd decomposition)
+        _PRINTSTD << " MAGMA_EVD_CLIENT " << "Count = " << count++ << std::endl ;  // Used to distingush if an object is the client (producer) or the server (consumer - consumes data to return dgeev decomposition)
     else 
         _PRINTSTD << " MAGMA_EVD_SERVER " << "Count = " << count++ << std::endl ;
     _PRINTSTD <<  "_regionsize_bytes: \t" << _regionsize_bytes << std::endl ;  // the size in bytes of the shared memory region double array, rounded up to the page size
@@ -587,7 +587,7 @@ public:
 	{
 		// Getting the path to the package kernel file (<packagedir>/include) can be fun
 		Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];
-		SEXP retvect = pathpackage_rcpp ("rcppMagmaSYEVD");  // use the R function in C++ 
+		SEXP retvect = pathpackage_rcpp ("rcppMagmaNonSYEVD");  // use the R function in C++ 
 		_datapathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
 		// _oclcode_pathstring = "f:/R/R-3.2.2/library/Harman" ;
 		_datapathstring = _datapathstring +"/src" ;
@@ -597,7 +597,7 @@ public:
 	{
 		// Getting the path to the package kernel file (<packagedir>/include) can be fun
 		Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];
-		SEXP retvect = pathpackage_rcpp ("rcppMagmaSYEVD");  // use the R function in C++ 
+		SEXP retvect = pathpackage_rcpp ("rcppMagmaNonSYEVD");  // use the R function in C++ 
 		_datapathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
 		// _oclcode_pathstring = "f:/R/R-3.2.2/library/Harman" ;
 		_datapathstring = _datapathstring +"/src" ;

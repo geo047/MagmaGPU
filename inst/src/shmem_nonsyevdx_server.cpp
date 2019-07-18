@@ -48,7 +48,7 @@
 int  server_init( std::string pathString, bool print )  ;
 std::string Get_ERROR_STR( int  errorin ) ;
 void server_close( )  ;
-int server_compute_syevdx_mgpu(  hideprintlog hideorprint  ) ;  // This function internally uses the static CSharedRegion * shrd_server object
+int server_compute_dgeev_mgpu(  hideprintlog hideorprint  ) ;  // This function internally uses the static CSharedRegion * shrd_server object
 int print_devices( bool print_num_bool, std::string pathString) ;
 int GetNumDevicesUsingOpenCL(std::string plat_str, int clDevType ) ;
 int GetNumDevicesUsingOpenCL_C(std::string plat_str, int clDevType ) ;
@@ -57,33 +57,44 @@ static CSharedRegion * shrd_server = NULL ;
 
 
 // External Function definitions
-extern "C" { 
-magma_int_t
-magma_dsyevdx_2stage(
-    magma_vec_t jobz, magma_range_t range, magma_uplo_t uplo,
-    magma_int_t n,
-    double *A, magma_int_t lda,
-    double vl, double vu, magma_int_t il, magma_int_t iu,
-    magma_int_t *mout, double *w,
-    double *work, magma_int_t lwork,
-    magma_int_t *iwork, magma_int_t liwork,
-    magma_int_t *info);
-	
-extern magma_int_t
-magma_dsyevdx_2stage_m(
-    magma_int_t ngpu,
-    magma_vec_t jobz, magma_range_t range, magma_uplo_t uplo,
-    magma_int_t n,
-    double *A, magma_int_t lda,
-    double vl, double vu, magma_int_t il, magma_int_t iu,
-    magma_int_t *mout, double *w,
-    double *work, magma_int_t lwork,
-    #ifdef COMPLEX
-    double *rwork, magma_int_t lrwork,
-    #endif
-    magma_int_t *iwork, magma_int_t liwork,
-    magma_int_t *info);
+extern "C" {
+magma_int_t 
+magma_dgeev_m	(	magma_vec_t 	jobvl,
+magma_vec_t 	jobvr,
+magma_int_t 	n,
+double * 	A,
+magma_int_t 	lda,
+double * 	wr,
+double * 	wi,
+double * 	VL,
+magma_int_t 	ldvl,
+double * 	VR,
+magma_int_t 	ldvr,
+double * 	work,
+magma_int_t 	lwork,
+magma_int_t * 	info 
+);		
+
+extern magma_int_t 
+magma_dgeev	(	magma_vec_t 	jobvl,
+magma_vec_t 	jobvr,
+magma_int_t 	n,
+double * 	A,
+magma_int_t 	lda,
+double * 	wr,
+double * 	wi,
+double * 	VL,
+magma_int_t 	ldvl,
+double * 	VR,
+magma_int_t 	ldvr,
+double * 	work,
+magma_int_t 	lwork,
+magma_int_t * 	info 
+);		
+
 }
+
+
 
  
 void PrintUsage(std::string progName) 
@@ -100,7 +111,7 @@ void PrintUsage(std::string progName)
 
 
  // struct arg_list is defined in CSharedRegion.h
-struct arg_list get_syevdx_args(int argc, char* argv[])
+struct arg_list get_dgeev_args(int argc, char* argv[])
 {
 	int opt;
 	struct arg_list ret_list ;
@@ -178,7 +189,7 @@ void EraseFromLast(std::string & resStr, std::string findStr )
 /*! 
  * main() entry point to Server C/C++ version of the code.
  * The client should start the server using a system call similar to:
- * 		> dsyevdx_server -n 10000 -v 1 -g 3 -m /syevx_<PID_of_client> -s /sem_<PID_of_client> 
+ * 		> ddgeev_server -n 10000 -v 1 -g 3 -m /syevx_<PID_of_client> -s /sem_<PID_of_client> 
  * 		Where:
  * 		-n = 10000 	- matrix size is 10000
  * 		-v = 1 		- we want eigenvectors returned (or 0 for just eigenvalues)
@@ -196,7 +207,7 @@ int main(int argc, char* argv[])
  
   /// the path is required so we can obtain the file <path to package install>/extdata/platformstring.txt to read in what platform the user wants
   std::string pathstr ; 
-	main_args = get_syevdx_args(argc, argv) ; 
+	main_args = get_dgeev_args(argc, argv) ; 
   pathstr.append(argv[0]) ;
   EraseFromLast (pathstr,SYSTEMDIRDELIM) ;
   EraseFromLast (pathstr,SYSTEMDIRDELIM) ;
@@ -214,7 +225,7 @@ int main(int argc, char* argv[])
 	{
 		if (numgpuavail == 0) 
 		{
-			ss_string << " MAGMA_EVD_SERVER Error: Number of gpus available is 0. dsyevdx_server will now exit" ;
+			ss_string << " MAGMA_EVD_SERVER Error: Number of gpus available is 0. ddgeev_server will now exit" ;
 			server_close() ;
       exit(EXIT_FAILURE);
       //error_and_die(ss_string.str());
@@ -276,12 +287,12 @@ int main(int argc, char* argv[])
            // shrd_server->PrintObjectDetails( false ) ;  // to log file == true 
             std::flush(std::cout) ;
           }
-          syevd_info = server_compute_syevdx_mgpu( main_args.msgChannel ) ;
+          syevd_info = server_compute_dgeev_mgpu( main_args.msgChannel ) ;
           if (syevd_info != 0)  
           {
             sem_post(shrd_server->_sem_id) ;
             ss_string << " MAGMA_EVD_SERVER Error: Error from: " << argv[0] ;
-            ss_string << " info != 0 returned from server_compute_syevdx_mgpu() " << std::endl  ;
+            ss_string << " info != 0 returned from server_compute_dgeev_mgpu() " << std::endl  ;
             ss_string << "N.B. IF Error numer = Bad address then GPU possibly ran out of memory." << std::endl   ;
             ss_string << "Then increase physical GPU memory or increase numGPUsWanted in RunServer()." << std::endl  ;
             error_and_die(ss_string.str());
@@ -305,13 +316,13 @@ int main(int argc, char* argv[])
  }
 
 
-// This is the modified original La_rs() code, with added magma 2stage symmetric eigenvalue decomposition
+// This is the modified original La_rs() code, with added magma 2stage non-symmetric eigenvalue decomposition
 // N.B. It makes a copy of the input matrix data - 
 // All data is passed in via the static CSharedRegion object shrd_server
-int server_compute_syevdx_mgpu( hideprintlog hideorprint )
+int server_compute_dgeev_mgpu( hideprintlog hideorprint )
 {
   
-  magma_int_t n, n2, lwork, info = 0;  // define MAGMA_ILP64 to get these as 64 bit integers
+  magma_int_t n, n2, lwork, lwork2, info = 0;  // define MAGMA_ILP64 to get these as 64 bit integers
 	magma_vec_t jobv ;  // tell the function if we want eigenvectors or not
 	if (shrd_server->_weWantVectors == WANTVECTORS)
 		jobv = MagmaVec;  // we want vectors returned, not just eigenvalues
@@ -329,7 +340,7 @@ int server_compute_syevdx_mgpu( hideprintlog hideorprint )
     
   if (shrd_server == NULL)
   {
-    std::cerr << " MAGMA_EVD_SERVER Error: server_compute_syevdx_mgpu(): shrd_server object is NULL" << std::endl ;
+    std::cerr << " MAGMA_EVD_SERVER Error: server_compute_dgeev_mgpu(): shrd_server object is NULL" << std::endl ;
     return(-1) ;
   }
   
@@ -341,7 +352,7 @@ int server_compute_syevdx_mgpu( hideprintlog hideorprint )
 	iu = (magma_int_t) (n);
 
   if (hideorprint == PRINT) {
-  	std::cout << " MAGMA_EVD_SERVER Info: dsyevdx called using: jobv = " << lapack_vec_const(jobv) ;
+  	std::cout << " MAGMA_EVD_SERVER Info: dgeev  called using: jobv = " << lapack_vec_const(jobv) ;
   	std::cout << " , range = "  << lapack_range_const(range) ;
   	std::cout << " , uplo = " << lapack_uplo_const(uplo) ;
   	std::cout << ", fraction = " << fraction ;
@@ -352,7 +363,7 @@ int server_compute_syevdx_mgpu( hideprintlog hideorprint )
 	// We could create a copy of the input matrix, in 'pinned' memory
 	// rvectors_ptr (was h_R) will initially be a copy of the input matrix  // TESTING_MALLOC_PIN( h_R,    double, n2    );
 	/*if ( MAGMA_SUCCESS != magma_malloc_pinned( (void**) &rvectors_ptr, (n2)*sizeof(double) )) {       
-		shrd_server->error_and_die("Error magma_syevdx_mgpu(): !!!! magma_malloc_pinned failed for: rvectors_ptr") ; 		                                                           
+		shrd_server->error_and_die("Error magma_dgeev_mgpu(): !!!! magma_malloc_pinned failed for: rvectors_ptr") ; 		                                                           
 	}*/
 	
 	//Rcpp::NumericVector rvalues(n) 	 ;
@@ -360,7 +371,7 @@ int server_compute_syevdx_mgpu( hideprintlog hideorprint )
 	rvectors_ptr = shrd_server->_vectors ;  // was rx
 	
   // ask for optimal size of work arrays 
-  lwork = -1; liwork = -1;
+  // ----> lwork = -1; liwork = -1;
   // magma_int_t threads = magma_get_parallel_numthreads();  // magma_get_parallel_numthreads() requires -I$MAGMA_HOME/control and 
   magma_int_t threads = 1;
 #if defined(_OPENMP)
@@ -374,22 +385,67 @@ int server_compute_syevdx_mgpu( hideprintlog hideorprint )
   if ( shrd_server->_weWantVectors == WANTVECTORS)
    b_wantVects = true ;
    
-  magma_dsyevdx_getworksize(n, threads, b_wantVects, &lwork, &liwork); 
-    
+// ---->   magma_dgeev_getworksize(n, threads, b_wantVects, &lwork, &liwork); 
+   
+  // AWG
+  // get work size
+            magma_int_t LDVL, LDVR;
+            LDVL=n;
+            LDVR=n;
+            lda   = n;
+            n2    = lda*n;
+            double *A;
+            magma_dmalloc_cpu(&A, n2);
+            double *wr;
+            magma_dmalloc_cpu(&wr, n);
+            double *wl;
+            magma_dmalloc_cpu(&wl, n);
+            double *VL
+            magma_dmalloc_cpu(&VL, LDVL*n);
+            double *VR
+            magma_dmalloc_cpu(&VR, LDVR*n);
+            magma_int_t lwork = -1;
+            double work[1];   
+
+
+         
+magma_dgeev(MagmaVec,
+MagmaNoVec,
+n,
+A,
+lda,
+wr,
+wl,
+VL,
+LDVL,
+VR,
+LDVR,
+work,
+-1,
+&info 
+);	
+
+std::cout << info << std::endl;
+std::cout << work[0] << std:endl;
+
+return 0;
+ 
+
+ 
 	if ( MAGMA_SUCCESS != magma_malloc_pinned( (void**) &work, (lwork)*sizeof(double) )) 
 	{      
-		shrd_server->error_and_die(" MAGMA_EVD_SERVER Error: magma_syevdx_mgpu() magma_malloc_pinned failed for: work" );                                                         
+		shrd_server->error_and_die(" MAGMA_EVD_SERVER Error: magma_dgeev_mgpu() magma_malloc_pinned failed for: work" );                                                         
 	}
 
 	if ( MAGMA_SUCCESS != magma_malloc_cpu( (void**) &iwork, (liwork)*sizeof(magma_int_t) )) {      
-		shrd_server->error_and_die("MAGMA_EVD_SERVER Error: magma_syevdx_mgpu() magma_malloc_cpu failed for: iwork" );                                                          
+		shrd_server->error_and_die("MAGMA_EVD_SERVER Error: magma_dgeev_mgpu() magma_malloc_cpu failed for: iwork" );                                                          
 	}		
 	
 	m = 0; 
-	if (hideorprint == PRINT) std::cout << "About to call magma_dsyevdx_2stage()..."<< std::endl ;
+	if (hideorprint == PRINT) std::cout << "About to call magma_dgeev()..."<< std::endl ;
    
 	if (shrd_server->_numgpus == 1) {
-      //printf("calling dsyevdx_2stage 1 GPU\n");
+      //printf("calling dgeev 1 GPU\n");
       magma_dsyevdx_2stage( jobv, range, uplo, n, 
                       rvectors_ptr, n, 
                       vl, vu, il, iu, 
@@ -398,7 +454,7 @@ int server_compute_syevdx_mgpu( hideprintlog hideorprint )
                       iwork, liwork, 
                       &info);	
   } else {
-      //printf("calling dsyevdx_2stage_m %ld GPU\n", (long int) opts.ngpu);
+      //printf("calling dgeev_m %ld GPU\n", (long int) opts.ngpu);
       magma_dsyevdx_2stage_m(shrd_server->_numgpus, jobv, range, uplo, n, 
                       rvectors_ptr, n, 
                       vl, vu, il, iu, 

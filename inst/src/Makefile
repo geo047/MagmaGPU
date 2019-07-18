@@ -15,26 +15,27 @@ CXXFLAGS  = -g -O3 -xHost $(INC) -I$(MAGMALIB)/include
 
  
 #  All external libraries
+LIBMKL =   -Wl,-rpath,$(INTEL_MKL_HOME)/lib/intel64_lin  -lmkl_intel_ilp64
 LIBMAGMA  = -L$(MAGMALIB)/lib -Wl,-rpath,$(MAGMALIB)/lib -lmagma 
 LIBCUDA		= -lcuda -lcudart
 LIBGPU		=  -lOpenCL
 LIBEXT    = $(LIBBLAS) -lpthread -lrt
-LIB       = $(LIBDIR) $(LIBGPU) $(LIBMAGMA) $(LIBCUDA)  $(LIBEXT)
+LIB       = $(LIBDIR) $(LIBGPU) $(LIBMAGMA) $(LIBCUDA) $(LIBMKL)   $(LIBEXT)
 
 
-SRCS=shmem_syevdx_server.cpp CStringManipulation.cpp
+SRCS=shmem_nonsyevdx_server.cpp CStringManipulation.cpp
 OBJS=$(subst .cpp,.o,$(SRCS))
 
-all: syevd_server.exe
+all: nonsyevd_server.exe
 
-syevd_server.exe: $(OBJS)
-	$(CXX) $(LDFLAGS) -o syevd_server.exe $(OBJS) $(LIB) 
+nonsyevd_server.exe: $(OBJS)
+	$(CXX) $(LDFLAGS) -o nonsyevd_server.exe $(OBJS) $(LIB) 
 
 install:
-	mv syevd_server.exe ../bin
+	mv nonsyevd_server.exe ../bin
 
 clean:
 	$(RM) $(OBJS)
 
 dist-clean: clean
-	$(RM) syevd_server ../bin/syevd_server.exe 
+	$(RM) nonsyevd_server ../bin/nonsyevd_server.exe 

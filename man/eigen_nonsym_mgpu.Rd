@@ -2,15 +2,15 @@
 % Please edit documentation in R/RcppExports.R
 \name{eigen_mgpu}
 \alias{eigen_mgpu}
-\title{Function used to obtain the eigenvalue decomposition (EVD) of a matrix using a MAGMA 2-stage multi-gpu EVD algorithm}
+\title{Function used to obtain the eigenvalue decomposition (EVD) of a non-symmetric matrix using a MAGMA 2-stage multi-gpu EVD algorithm}
 \usage{
-eigen_mgpu(matrix, symmetric = TRUE, only_values = FALSE,
+eigen_nonsym_mgpu(matrix, symmetric = FALSE, only_values = FALSE,
   overwrite = FALSE, printInfo = FALSE)
 }
 \arguments{
 \item{matrix}{- the input matrix to be used in eigenvalue decomposition. It is assumed to be square}
 
-\item{symmetric}{- the input is assumed to be symmetric and real. Function will fail if symmetric=FALSE.}
+\item{symmetric}{- the input is assumed to be non-symmetric and real. Function will fail if symmetric=TRUE}
 
 \item{only_values}{- If TRUE: only compute eigenvalues. If FALSE: Compute eigenvectors also.}
 
@@ -28,7 +28,7 @@ data is overwritten.
 The method involves the offload of the matrix data to a seperate syevd_server executable by copying data into a shared memory area and
 signalling to the server that the data is availble. This function will block until the server has completed the decomposition. The
 function checks that the input is square, however it does not check that the matrix is symmetric.
-N.B. The maximum size allowed of the input matrix is goverend by what was provided in the rcppMagmaSYEVD::RunServer() function. The server
+N.B. The maximum size allowed of the input matrix is goverend by what was provided in the rcppMagmaNonSYEVD::RunServer() function. The server
 will automatically be restarted with a larger shared memory area if user wants to perorm EVD on a larger matrix.
 }
 

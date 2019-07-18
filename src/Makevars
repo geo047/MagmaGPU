@@ -1,5 +1,5 @@
 # Makevars file for R package rcppMagma
-# Compile package using: R CMD INSTALL --preclean --build rcppMagmaSYEVD -l ~/R/library
+# Compile package using: R CMD INSTALL --preclean --build rcppMagmaNonSYEVD -l ~/R/library
 # Where ~/R/library is a local R library
 #
 # This library uses a client-server architecture to overcome the limitation of R using 32 bit integers
