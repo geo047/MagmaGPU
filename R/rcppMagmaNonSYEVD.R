@@ -7,7 +7,7 @@
 #' @return A character vector containing output of the make process
 #' @export
 #' @description 
-#' Creates syevd_server executable using a call to 'make' and the makefile/make.inc information present in the <package root>/src directory.
+#' Creates nonsyevd_server executable using a call to 'make' and the makefile/make.inc information present in the <package root>/src directory.
 #' Users have to set the following variable in make.inc :
 #'      MAGMALIB  =$(MAGMA_HOME)/lib          # The path to the MAGMA library
 #' 
@@ -117,8 +117,8 @@ RunServer <- function( environmentSetup="", numGPUsWanted=0,  matrixMaxDimension
 .onAttach <- function(libname, pkgname) { 
   # Create the server executable if it does not exist
   # packagepathstring <- libname ;# path.package ("rcppMagmaNonSYEVD");  
-  serverstring = paste0(libname,"/rcppMagmaNonSYEVD/bin/syevd_server.exe")
- # file.exists(c("/home/bow355/R/library/rcppMagmaNonSYEVD/bin/syevd_server"))
+  serverstring = paste0(libname,"/rcppMagmaNonSYEVD/bin/nonsyevd_server.exe")
+ # file.exists(c("/home/bow355/R/library/rcppMagmaNonSYEVD/bin/nonsyevd_server"))
   if (!file.exists(serverstring)) {
     
      packageStartupMessage("MAGMA_EVD_CLIENT Info: server executable = ", serverstring, " Does not exist!, We will try to build it now.")

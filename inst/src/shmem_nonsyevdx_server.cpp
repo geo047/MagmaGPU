@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
 int server_compute_dgeev_mgpu( hideprintlog hideorprint )
 {
   
-  magma_int_t n, n2, lwork, lwork2, info = 0;  // define MAGMA_ILP64 to get these as 64 bit integers
+  magma_int_t n, n2,  lwork2, info = 0;  // define MAGMA_ILP64 to get these as 64 bit integers
 	magma_vec_t jobv ;  // tell the function if we want eigenvectors or not
 	if (shrd_server->_weWantVectors == WANTVECTORS)
 		jobv = MagmaVec;  // we want vectors returned, not just eigenvalues
@@ -332,7 +332,7 @@ int server_compute_dgeev_mgpu( hideprintlog hideorprint )
 	magma_range_t range = magma_range_const('A') ; // MagmaRangeAll ;
 	
 	double fraction = 1.0 ;
-  double *work, *rvectors_ptr, *rvalues_ptr ;
+  double  *rvectors_ptr, *rvalues_ptr ;
   magma_int_t liwork, *iwork, m;
   double vl = 0.0, vu = 0.0, abstol = 0.0;
   
@@ -369,6 +369,15 @@ int server_compute_dgeev_mgpu( hideprintlog hideorprint )
 	//Rcpp::NumericVector rvalues(n) 	 ;
 	rvalues_ptr = shrd_server->_values ;
 	rvectors_ptr = shrd_server->_vectors ;  // was rx
+
+
+       // AWG
+       // Make copy of rvectors_ptr => *A 
+       double *A;
+       magma_dmalloc_cpu(&A, n2);   // to house data that will be lost 
+       for(int i=0; i<n2; i++){
+          A[i] = rvectors_ptr[i];
+       }
 	
   // ask for optimal size of work arrays 
   // ----> lwork = -1; liwork = -1;
@@ -389,44 +398,88 @@ int server_compute_dgeev_mgpu( hideprintlog hideorprint )
    
   // AWG
   // get work size
-            magma_int_t LDVL, LDVR;
+            magma_int_t lda, LDVL, LDVR;
             LDVL=n;
             LDVR=n;
             lda   = n;
             n2    = lda*n;
-            double *A;
-            magma_dmalloc_cpu(&A, n2);
             double *wr;
             magma_dmalloc_cpu(&wr, n);
             double *wl;
             magma_dmalloc_cpu(&wl, n);
-            double *VL
+            double *VL;
             magma_dmalloc_cpu(&VL, LDVL*n);
-            double *VR
+            double *VR;
             magma_dmalloc_cpu(&VR, LDVR*n);
             magma_int_t lwork = -1;
             double work[1];   
 
 
-         
+        // get optimal workspace size  
 magma_dgeev(MagmaVec,
 MagmaNoVec,
 n,
-A,
+NULL,
 lda,
-wr,
-wl,
-VL,
+NULL,
+NULL,
+NULL,
 LDVL,
-VR,
+NULL,
 LDVR,
 work,
 -1,
 &info 
 );	
 
+//std::cout << info << std::endl;
+//std::cout << work[0] << std::endl;
+lwork = work[0];
+double *h_work;
+magma_dmalloc_cpu(&h_work, lwork);
+
+
+// Perform analysis 
+magma_dgeev(MagmaNoVec, MagmaVec, n, A, lda, rvalues_ptr, wl, VL, LDVL, rvectors_ptr, LDVR, h_work,
+              lwork, &info);
+
+
+
+
+//magma_dgeev(MagmaNoVec, MagmaVec, n, A, lda, rvalues_ptr, wl, VL, LDVL, VR, LDVR, h_work,
+//                 lwork, &info);
 std::cout << info << std::endl;
-std::cout << work[0] << std:endl;
+
+
+
+// testing that this print statemetn is working correctly 
+std::cout << "eigenvalues ... " << std::endl;
+for(int i=0; i<n; i++){
+  std::cout << rvalues_ptr[i] << " " ;
+}
+std::cout << std::endl;
+
+std::cout << "eigenvectors ... " << std::endl;
+for(int i=0; i<25; i++){
+  std::cout << rvectors_ptr[i] << " " ;
+}
+std::cout << std::endl;
+std::cout << " contents of VR " << std::endl;
+magma_dprint(5,5, VR, n);
+
+
+
+
+
+
+magma_free_cpu( h_work);
+magma_free_cpu( A);
+magma_free_cpu( wr);
+magma_free_cpu( wl);
+magma_free_cpu( VL);
+magma_free_cpu( VR);
+
+
 
 return 0;
  
@@ -512,7 +565,7 @@ int  server_init(std::string pathString, bool print_bool )
     {
       std::cerr << " MAGMA_EVD_SERVER Error: server_init(): sizeof(magma_int_t) < 8 bytes! "  << std::endl ;
       std::cerr << " MAGMA_EVD_SERVER Error: server_init(): The MAGMA library used has not been compiled with 64 bit integer interface "  << std::endl ;
-      std::cerr << " MAGMA_EVD_SERVER Error: server_init(): Please link syevd_server executable to MAGMA built with -DMAGMA_ILP64  "  << std::endl ;
+      std::cerr << " MAGMA_EVD_SERVER Error: server_init(): Please link nonsyevd_server executable to MAGMA built with -DMAGMA_ILP64  "  << std::endl ;
       std::cerr << " MAGMA_EVD_SERVER Error: server_init(): Exiting! "  << std::endl ;
       server_close() ;
       exit(1) ;
@@ -864,7 +917,7 @@ int GetNumDevicesUsingOpenCL(std::string plat_str, int clDevType )
       std::cerr << std::endl ;
       std::cerr << " MAGMA_EVD_SERVER Error: GetNumDevicesUsingOpenCL() The platform that this package was built for does not seem to exist!" << std::endl ;
       std::cerr << " MAGMA_EVD_SERVER Error: platform requested: " << plat_str << std::endl ;
-      std::cerr << " MAGMA_EVD_SERVER Error: Recompile the syevd_server executable (using Make_SYEVD_Server()) specifying " << std::endl ;
+      std::cerr << " MAGMA_EVD_SERVER Error: Recompile the nonsyevd_server executable (using Make_SYEVD_Server()) specifying " << std::endl ;
       std::cerr << " MAGMA_EVD_SERVER Error: an available platform (as seen above)in the <R_LIB>/rcppMagmaSYEVD/src/make.inc file " << std::endl ;
     }
 

@@ -1,2 +1,2 @@
-useDynLib(rcppMagmaSYEVD)
+useDynLib(rcppMagmaNonSYEVD)
 exportPattern("^[[:alpha:]]+")

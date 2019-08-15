@@ -148,7 +148,7 @@ std::string GetServerArgs(int matrixDimension, bool withVectors, int numGPUsWant
   Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];  // get the R function "path.package()"
 	SEXP retvect = pathpackage_rcpp ("rcppMagmaNonSYEVD");  // use the R function in C++ 
 	serverpathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
-	serverpathstring = serverpathstring + "/bin/nonsyevd_server" ;
+	serverpathstring = serverpathstring + "/bin/nonsyevd_server.exe" ;
   if (!exists(serverpathstring))
   {
     ss_string << " MAGMA_EVD_CLIENT Error: rcppMagmaNonSYEVD::GetServerArgs()  " << std::endl ;

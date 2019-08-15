@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // StopServer
 void StopServer();
-RcppExport SEXP rcppMagmaSYEVD_StopServer() {
+RcppExport SEXP rcppMagmaNonSYEVD_StopServer() {
 BEGIN_RCPP
     StopServer();
     return R_NilValue;
@@ -15,7 +15,7 @@ END_RCPP
 }
 // CleanupSharedMemory
 int CleanupSharedMemory();
-RcppExport SEXP rcppMagmaSYEVD_CleanupSharedMemory() {
+RcppExport SEXP rcppMagmaNonSYEVD_CleanupSharedMemory() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -25,7 +25,7 @@ END_RCPP
 }
 // GetServerArgs
 std::string GetServerArgs(int matrixDimension, bool withVectors, int numGPUsWanted, std::string memName, std::string semName, int printDetails);
-RcppExport SEXP rcppMagmaSYEVD_GetServerArgs(SEXP matrixDimensionSEXP, SEXP withVectorsSEXP, SEXP numGPUsWantedSEXP, SEXP memNameSEXP, SEXP semNameSEXP, SEXP printDetailsSEXP) {
+RcppExport SEXP rcppMagmaNonSYEVD_GetServerArgs(SEXP matrixDimensionSEXP, SEXP withVectorsSEXP, SEXP numGPUsWantedSEXP, SEXP memNameSEXP, SEXP semNameSEXP, SEXP printDetailsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< int >::type matrixDimension(matrixDimensionSEXP);
@@ -38,9 +38,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// eigen_mgpu
-Rcpp::List eigen_mgpu(Rcpp::NumericMatrix matrix, bool symmetric, bool only_values, bool overwrite, bool printInfo);
-RcppExport SEXP rcppMagmaSYEVD_eigen_mgpu(SEXP matrixSEXP, SEXP symmetricSEXP, SEXP only_valuesSEXP, SEXP overwriteSEXP, SEXP printInfoSEXP) {
+// eigen_nonsym_mgpu
+Rcpp::List eigen_nonsym_mgpu(Rcpp::NumericMatrix matrix, bool symmetric, bool only_values, bool overwrite, bool printInfo);
+RcppExport SEXP rcppMagmaNonSYEVD_eigen_nonsym_mgpu(SEXP matrixSEXP, SEXP symmetricSEXP, SEXP only_valuesSEXP, SEXP overwriteSEXP, SEXP printInfoSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type matrix(matrixSEXP);
@@ -48,19 +48,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type only_values(only_valuesSEXP);
     Rcpp::traits::input_parameter< bool >::type overwrite(overwriteSEXP);
     Rcpp::traits::input_parameter< bool >::type printInfo(printInfoSEXP);
-    rcpp_result_gen = Rcpp::wrap(eigen_mgpu(matrix, symmetric, only_values, overwrite, printInfo));
-    return rcpp_result_gen;
-END_RCPP
-}
-// sqrt_invsqrt
-Rcpp::List sqrt_invsqrt(Rcpp::NumericMatrix matrix, bool symmetric, bool printInfo);
-RcppExport SEXP rcppMagmaSYEVD_sqrt_invsqrt(SEXP matrixSEXP, SEXP symmetricSEXP, SEXP printInfoSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type matrix(matrixSEXP);
-    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
-    Rcpp::traits::input_parameter< bool >::type printInfo(printInfoSEXP);
-    rcpp_result_gen = Rcpp::wrap(sqrt_invsqrt(matrix, symmetric, printInfo));
+    rcpp_result_gen = Rcpp::wrap(eigen_nonsym_mgpu(matrix, symmetric, only_values, overwrite, printInfo));
     return rcpp_result_gen;
 END_RCPP
 }

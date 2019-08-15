@@ -9,7 +9,7 @@ Also provides a function to return the sqrt() and inverse sqrt() of the matrix.
 Compilation of the 'server side' code:
 Requires environment variables MAGMA_HOME to be set to where the MAGMA install is present. MAGMA_HOME=/usr/local/magma is the default.
 The CUDA version of MAGMA requires CUDA_ROOT to be set CUDA_ROOT=/usr/local/cuda is the default.
-If these variables are set correctly then the server side code will be compiled automatically when the package is installed, and failing on install then whenerver the package is loaded into the R environment using library(rcppMagmaSYEVD).
+If these variables are set correctly then the server side code will be compiled automatically when the package is installed, and failing on install then whenerver the package is loaded into the R environment using library(rcppMagmaNonSYEVD).
 
 
 Compilation of the R package the 'client side' code:
