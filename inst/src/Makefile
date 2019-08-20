@@ -32,6 +32,7 @@ nonsyevd_server.exe: $(OBJS)
 	$(CXX) $(LDFLAGS) -o nonsyevd_server.exe $(OBJS) $(LIB) 
 
 install:
+        mkdir ../bin
 	mv nonsyevd_server.exe ../bin
 
 clean:
