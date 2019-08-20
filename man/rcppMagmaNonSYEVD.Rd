@@ -20,7 +20,7 @@ The default platform string is stored in a file in <R library path>/rcppMagamSYE
 If these libraries and variables are set correctly then the server side code will be compiled automatically when the package is installed. If failing installation on install then whenerver the package is loaded into the R environment using library(rcppMagmaNonSYEVD) the system will attempt to compile the server code.
 
 
-N.B. Calling the eigen_mgpu() function with argument overwrite=TRUE will cause an *overwrite of the input matrix data* with the eigenvectors of the original matrix data (if they are requested). This is done to potentialy reduce the memory footprint of the function. If overwrite=TRUE then please ensure the original matrix is copied if the data needs to be used after the function is called. Using overwrite=FALSE will return the usual list of results in $vectors and $values list items of the result object.
+N.B. Calling the eigen_nonsym_mgpu() function with argument overwrite=TRUE will cause an *overwrite of the input matrix data* with the eigenvectors of the original matrix data (if they are requested). This is done to potentialy reduce the memory footprint of the function. If overwrite=TRUE then please ensure the original matrix is copied if the data needs to be used after the function is called. Using overwrite=FALSE will return the usual list of results in $vectors and $values list items of the result object.
 
 }
 \details{
@@ -88,89 +88,43 @@ doi: 10.1109/SC.Companion.2012.173
 eigen
 }
 \examples{
-\dontrun{
-# Initialisation:
 
-  numgpus <- 1 
-  maxMatrixSize <- 5000  # the server will fail if the matrix sized passed to it is greater than this value
-  if (numgpus > 0) # use MAGMA GPU eigen_mgpu() 
-	{
-		if (require(rcppMagmaNonSYEVD))
-		{
-			RunServer(  numGPUsWanted=numgpus, matrixMaxDimension=maxMatrixSize,  memName="/syevd_mem", semName="/syevd_sem", print=1)			
-		}	else {
-		  numgpus <- 0  # Package is not available so set numgpus to zero and use original eigen() using LAPACK 
-    }
-	}
-  
-# Usage:
-  size <- 2000
-  
-  // Do not use GPU version if matrix size is small - 
-  if (size < 1000){ 
-    numgpus <- 0
-  }
-  
-  set.seed(42)
-  elems <- size * size
-  V <- matrix(runif(elems),size)
-  V <- crossprod(V)
-	if (numgpus == 0) { 
-    # CPU version 
-		evdresult <- eigen( V, symmetric=T, only.values=F )
-	} else if (numgpus > 0) {
-    # GPU version
-		evdresult <- eigen_mgpu( V, symmetric=T, only_values=F, overwrite=T) # from the rcppMagmaNonSYEVD package
-  }
-  # N.B. If overwrite=T, the V matrix will now contain the eignevalues of the original V data matrix
-  # Use overwrite=F to obtain an identical data structure as the original R eigen() function, 
-  # without overwriting the input matrix.
-	
-
-# Close:
-	# The server program will be terminated when the R session exits or the package is unloaded.
-	# To terminate manually, run the following which gets the R (client) to signal to the server to exit.
-	StopServer() 
-} # end of dontrun
-
-# Basic tests for correctness:
-
-  size <- 1000
+  n  <- 1000
 	library(rcppMagmaNonSYEVD)
-	RunServer(numGPUsWanted=1, matrixMaxDimension=size, memName="/syevd_mem", semName="/syevd_sem", print=0)
+	RunServer(numGPUsWanted=1, matrixMaxDimension=n, memName="/syevd_mem", semName="/syevd_sem", print=0)
 	set.seed(42)
-	elems <- size * size
-	system.time(r1 <- matrix(runif(elems),size))
-	system.time(r1 <- crossprod(r1))
-	set.seed(42)
-	elems <- size * size
-	system.time(r2 <- matrix(runif(elems),size))
-	system.time(r2 <- crossprod(r2))  # make input symmetric
+        K <- matrix(sample(c(0,1), n*n, TRUE), nrow=n)
+        K <- tcrossprod(K)
+        Z <- matrix(data=0, nrow=2*n, ncol=n)
+        for(ii in 1:(2*n)){
+                indx <- sample(1:n, 1, FALSE)
+                  Z[ii, indx] <- 1
+          }
+          res <- K %*% crossprod(Z, Z)
 
-	system.time(r2_gpus <- eigen_mgpu(r2, symmetric=TRUE, only_values=FALSE, overwrite=FALSE) )
-	r2_gpus$vectors[1:5,1:5]
-	r2_gpus$values[1:5]
-	inv_evals_r2 <- diag(1.0/r2_gpus$values)
-	system.time(r2_inv <- (r2_gpus$vectors) \%*\% inv_evals_r2 \%*\% t(r2_gpus$vectors)) 
-	ident_r2 <- r2_inv \%*\% r2
-	if ((sum(diag(ident_r2)) - size) < 0.0001) {
-    message("PASSED")
-  } else {
-    message("FAILED")
-  }
+  # GPU based
+  eigGPU <- rcppMagmaNonSYEVD::eigen_nonsym_mgpu(res , symmetric = FALSE , only_values=FALSE)
+  indx <- order(eigGPU$values, decreasing=TRUE)
+  eigGPU$vectors <-  eigGPU$vectors[, indx]
+  eigGPU$values <- eigGPU$values[indx]
 
-	# Compare with eigen()
-	system.time(r1_eig <- eigen(r1,symmetric=TRUE))
-	r1_eig$vectors[1:5,1:5]
-	r1_eig$values[1:5]
-	inv_evals_r1 <- diag(1.0/r1_eig$values)
-	system.time(r1_inv <- r1_eig$vectors \%*\% inv_evals_r1 \%*\% t(r1_eig$vectors))  
-	ident_r1 <- r1_inv \%*\% r1
-  if ((sum(diag(ident_r1)) - size) < 0.0001) {
-    message("PASSED")
-  } else {
-    message("FAILED")
-  }
+  valuesGPU <-  eigGPU$values
+  tmpmat <- Z %*% eigGPU$vectors
+  vectorsGPU <-  qr.Q(qr(tmpmat), complete = TRUE)
+  print(" in here ")
+
+  eig <- eigen(res, symmetric=FALSE, EISPACK=TRUE)
+  valuesCPU <- eig$values
+  tmpmat <- Z %*% eig$vector
+  vectorsCPU <- qr.Q(qr(tmpmat), complete = TRUE)
+
+  print(" Eigenvvectors from GPU based code")
+  print(vectorsGPU[1:5, 1:5])
+  print(" Eigenvectors from CPU based code")
+  print(vectorsCPU[1:5, 1:5])
+
+
+
 
 	# the server program will be terminated when the R session exits or the package is unloaded
 	# to terminate manually:

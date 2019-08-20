@@ -57,7 +57,7 @@ void catch_signal(int sig)
       shrd_client = NULL ;
     } 
     if (sig == SIGTERM)
-      exit(-1) ;
+      Rcpp::stop("\n"); 
       // _STOPFUNCTION ;
       // exit(1) ;
 }

@@ -26,8 +26,7 @@
 
 PKG_CPPFLAGS= -D_USE_RCPP=1
 PKG_CXXFLAGS=  -I../inst/include -qopenmp 
-PKG_LIBS = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` $(FLIBS) $(BLAS_LIBS)
-
+PKG_LIBS = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` $(LAPACK_LIBS)  $(BLAS_LIBS) $(FLIBS) 
 #  -DADD_  $(FLIBS) $(BLAS_LIBS) $(LAPACK_LIBS)
 
 

@@ -1,2 +1,5 @@
 useDynLib(rcppMagmaNonSYEVD)
 exportPattern("^[[:alpha:]]+")
+import(Rcpp)
+
+
