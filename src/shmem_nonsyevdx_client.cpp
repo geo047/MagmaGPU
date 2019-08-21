@@ -303,6 +303,123 @@ Rcpp::List eigen_nonsym_mgpu(Rcpp::NumericMatrix matrix, bool symmetric=false,  
 }
  
 
+//' Function used to obtain the eigenvalue decomposition (EVD) of a matrix using a MAGMA 2-stage multi-gpu EVD algorithm
+//' @description This function performs the eigenvalue decomposition of the input matrix and returns the eigenvalues and (if requested) the 
+//' eigenvectors of the input matrix in the returned list, identical to the base R eigen() function. If overwrite=TRUE then the eigenvectors are copied into the ***input matrix*** and the original matrix 
+//' data is overwritten. 
+//' The method involves the offload of the matrix data to a seperate syevd_server executable by copying data into a shared memory area and 
+//' signalling to the server that the data is availble. This function will block until the server has completed the decomposition. The 
+//' function checks that the input is square, however it does not check that the matrix is symmetric.
+//' N.B. The maximum size allowed of the input matrix is goverend by what was provided in the rcppMagmaSYEVD::RunServer() function. The server 
+//' will automatically be restarted with a larger shared memory area if user wants to perorm EVD on a larger matrix.
+//' @param matrix - the input matrix to be used in eigenvalue decomposition. It is assumed to be square 
+//' @param symmetric - the input is assumed to be symmetric and real. Function will fail if symmetric=FALSE.
+//' @param only_values - If TRUE: only compute eigenvalues. If FALSE: Compute eigenvectors also. 
+//' @param overwrite - If TRUE: The resulting eigenvectors (if requested) will overwrite the input matrix to potentially reduce memory requirements. 
+//' @param printInfo - Prints diagnostic information about the client processing
+//' @return A list that contains the eigenvalues and if requested the eignenvectors. If overwrite==TRUE then the eignevectors are copied into the ***input matrix***
+// [[Rcpp::export(rng=false)]]
+Rcpp::List eigen_mgpu(Rcpp::NumericMatrix matrix, bool symmetric=true,  bool only_values=false, bool overwrite=false, bool printInfo=false )
+{
+  std::stringstream ss_string;
+
+  if (symmetric == false)
+   Rcpp::stop(" MAGMA_EVD_CLIENT Error: eigen_mgpu() assumes a symmetric matrix as input and user has specified non-symmetric") ;
+
+  bool withVectors = ! only_values ;
+  if (shrd_client != NULL)
+  {
+    try {
+      // Check that we have enough memeory in the sahred memory region:
+      if (matrix.ncol() > shrd_client->_max_matrix_dim)
+      {
+         // delete shrd_client ;
+        // delete shrd_client ;
+         _PRINTSTD << " MAGMA_EVD_CLIENT Error: eigen_mgpu() input matrix size (" << matrix.ncol() << ") " ;
+         _PRINTSTD << " is bigger than maximum requested! (" << shrd_client->_max_matrix_dim << ")" << std::endl ;
+         _PRINTSTD << " Please run RunServer() with a larger matrixMaxDimension argument"  << ")"<< std::endl ;
+         std::flush(_PRINTSTD) ;
+         Rcpp::stop("MAGMA_EVD_CLIENT Error: eigen_mgpu()") ;
+         // return(Rcpp::List::create(  Rcpp::Named("error") = ss_string.str() )) ;
+      }
+
+      if (matrix.ncol() != matrix.nrow()) {
+         _PRINTSTD << " MAGMA_EVD_CLIENT Error: eigen_mgpu() The input matrix is not square! Rows: " << matrix.nrow() << " Cols:" << matrix.ncol()  << std::endl ;
+         std::flush(_PRINTSTD) ;
+         Rcpp::stop("MAGMA_EVD_CLIENT Error: eigen_mgpu()") ;
+         //return(Rcpp::List::create(  Rcpp::Named("error") = ss_string.str()  )) ;
+      }
+
+      shrd_client->SetCurrentMatrixSizeAndVectorsRequest(matrix.ncol(), withVectors) ;
+      size_t numbytes = matrix.ncol() * matrix.ncol() * sizeof(double) ;
+
+      // Copy memory from R matrix to shared memory region
+      shrd_client->copy_matrix_into_shmem(matrix.begin(), numbytes ) ;
+      //  *** Call sem_post() so that the server can then move on to do processing 
+      if (printInfo == true) _PRINTSTD << " MAGMA_EVD_CLIENT Info: copy_matrix_into_shmem() has copied memory to shared region, calling sem_post()" << std::endl  ;
+
+      sem_post(shrd_client->_sem_id);
+      if (printInfo == true) _PRINTSTD << " MAGMA_EVD_CLIENT Info: sem_post() was called - release the server thread " << std::endl  ;
+      std::flush(_PRINTSTD) ;
+
+      sleep(1) ;  // Give the server some time to acknowledge the change in semaphre state.
+
+      // *** Blocks here until server releases semaphore ***
+      if (printInfo == true) _PRINTSTD << " MAGMA_EVD_CLIENT Info: Waiting on the server thread to sem_post() so client can copy back memory" << std::endl  ;
+      sem_wait(shrd_client->_sem_id);
+     if (printInfo == true) _PRINTSTD << " MAGMA_EVD_CLIENT Info: sem_wait() was called " << std::endl  ;
+
+
+      // Create storage for the eigenvalues to be returned to R
+      Rcpp::NumericVector rvalues(matrix.ncol()) ;
+     // Copy back the eigen values
+      // offset to get evalues is numbytes 
+      shrd_client->copy_shmem_into_matrix(rvalues.begin(), rvalues.length() * sizeof(double) , numbytes) ;
+      std::reverse(rvalues.begin(),rvalues.end())   ; // inplace reverse of the eigenvalues    //Original R version: ord <- rev(seq_along(z$values))
+
+      if (printInfo == true) _PRINTSTD << " MAGMA_EVD_CLIENT Info: has copied the rvalues data from shared memory" << std::endl  ;
+      if (shrd_client->_weWantVectors == WANTVECTORS)
+        {
+        if (overwrite==true) {
+          shrd_client->copy_shmem_into_matrix(matrix.begin(), matrix.ncol() * matrix.ncol() * sizeof(double) , 0) ;
+          shrd_client->copy_matrix_inplace_reverse_rows(matrix.begin(), matrix.nrow()) ;
+          Rcpp::CharacterVector retInfoAboutEvects("Eigen vectors have been returned in the input matrix")  ;
+          return (Rcpp::List::create(  Rcpp::Named("values") = rvalues,  // pcascores->_scores,  // corrected_scores,
+                                       Rcpp::Named("vectors") = retInfoAboutEvects )) ;
+        }
+        else
+        {
+          Rcpp::NumericMatrix vectors(matrix.ncol(),matrix.ncol()) ;  // create the output matrix
+         // shrd_client->copy_shmem_into_matrix_reverse_cols(vectors.begin(), vectors.nrow()) ;  // place eignevectors in the original input matrix and return to user
+         // shrd_client->copy_matrix_inplace_reverse_rows(vectors.begin(), vectors.nrow()) ;
+          shrd_client->copy_shmem_into_matrix(vectors.begin(), vectors.ncol() * vectors.ncol() * sizeof(double) , 0) ;
+          shrd_client->copy_matrix_inplace_reverse_rows(vectors.begin(), vectors.nrow()) ;
+         // shrd_client->copy_matrix_inplace_reverse_cols(vectors.begin(), vectors.nrow()) ;
+          return (Rcpp::List::create(  Rcpp::Named("values") = rvalues,  // pcascores->_scores,  // corrected_scores,
+                                       Rcpp::Named("vectors") = vectors )) ;
+        }
+
+                     }
+        else
+        {
+                return (Rcpp::List::create(  Rcpp::Named("values") = rvalues )) ;
+        }
+
+    } catch (...) {
+     _PRINTSTD << " MAGMA_EVD_CLIENT Info: eigen_mgpu(): Fell into catch block " << std::endl  ;
+      std::flush(_PRINTSTD) ;
+      CleanupSharedMemory() ;
+      return (Rcpp::List::create(  Rcpp::Named("values") = "",  // pcascores->_scores,  // corrected_scores,
+                                  Rcpp::Named("vectors") = "" )) ;
+    }
+  } else {
+    Rcpp::stop(" MAGMA_EVD_CLIENT Error: eigen_mgpu() failed as the client CSharedMemory object is NULL (User possibly needs to call RunServer())") ;
+    // return("Error: syevdx_client_fill_matrix failed as Client CSharedMemory object is NULL (User possibly needs to call RunServer())") ;
+  }
+
+}
+
+
  
 
 

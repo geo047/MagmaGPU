@@ -49,6 +49,7 @@ int  server_init( std::string pathString, bool print )  ;
 std::string Get_ERROR_STR( int  errorin ) ;
 void server_close( )  ;
 int server_compute_dgeev_mgpu(  hideprintlog hideorprint  ) ;  // This function internally uses the static CSharedRegion * shrd_server object
+int server_compute_syevdx_mgpu(  hideprintlog hideorprint  ) ;  // This function internally uses the static CSharedRegion * shrd_server object
 int print_devices( bool print_num_bool, std::string pathString) ;
 int GetNumDevicesUsingOpenCL(std::string plat_str, int clDevType ) ;
 int GetNumDevicesUsingOpenCL_C(std::string plat_str, int clDevType ) ;
@@ -91,6 +92,40 @@ double * 	work,
 magma_int_t 	lwork,
 magma_int_t * 	info 
 );		
+
+
+magma_int_t
+magma_dsyevdx_2stage(
+    magma_vec_t jobz, magma_range_t range, magma_uplo_t uplo,
+    magma_int_t n,
+    double *A, magma_int_t lda,
+    double vl, double vu, magma_int_t il, magma_int_t iu,
+    magma_int_t *mout, double *w,
+    double *work, magma_int_t lwork,
+    magma_int_t *iwork, magma_int_t liwork,
+    magma_int_t *info);
+
+extern magma_int_t
+magma_dsyevdx_2stage_m(
+    magma_int_t ngpu,
+    magma_vec_t jobz, magma_range_t range, magma_uplo_t uplo,
+    magma_int_t n,
+    double *A, magma_int_t lda,
+    double vl, double vu, magma_int_t il, magma_int_t iu,
+    magma_int_t *mout, double *w,
+    double *work, magma_int_t lwork,
+    #ifdef COMPLEX
+    double *rwork, magma_int_t lrwork,
+    #endif
+    magma_int_t *iwork, magma_int_t liwork,
+    magma_int_t *info);
+}
+
+
+
+
+
+
 
 }
 
@@ -398,76 +433,53 @@ int server_compute_dgeev_mgpu( hideprintlog hideorprint )
    
   // AWG
   // get work size
-            magma_int_t lda, LDVL, LDVR;
-            LDVL=n;
-            LDVR=n;
-            lda   = n;
-            n2    = lda*n;
-            double *wr;
-            magma_dmalloc_cpu(&wr, n);
-            double *wl;
-            magma_dmalloc_cpu(&wl, n);
-            double *VL;
-            magma_dmalloc_cpu(&VL, LDVL*n);
-            double *VR;
-            magma_dmalloc_cpu(&VR, LDVR*n);
-            magma_int_t lwork = -1;
-            double work[1];   
+  magma_int_t lda, LDVL, LDVR;
+  LDVL=n;
+  LDVR=n;
+  lda   = n;
+  n2    = lda*n;
+  double *wr;
+     if ( MAGMA_SUCCESS != magma_dmalloc_cpu(&wr, n) )
+     {
+        shrd_server->error_and_die(" MAGMA_EVD_SERVER Error: magma_dgeev_mgpu() magma_dmalloc_cpu failed for: wr " );
+     }
+  double *wl;
+     if ( MAGMA_SUCCESS != magma_dmalloc_cpu(&wl, n) )
+     {
+        shrd_server->error_and_die(" MAGMA_EVD_SERVER Error: magma_dgeev_mgpu() magma_dmalloc_cpu failed for: wl " );
+     }
+  double *VL;
+     if ( MAGMA_SUCCESS != magma_dmalloc_cpu(&VL,  LDVL*n) )
+     {
+        shrd_server->error_and_die(" MAGMA_EVD_SERVER Error: magma_dgeev_mgpu() magma_dmalloc_cpu failed for: VL " );
+     }
+  double *VR;
+     if ( MAGMA_SUCCESS != magma_dmalloc_cpu(&VR,  LDVR*n) )
+     {
+        shrd_server->error_and_die(" MAGMA_EVD_SERVER Error: magma_dgeev_mgpu() magma_dmalloc_cpu failed for: VR " );
+     }
+  magma_int_t lwork = -1;
+  double work[1];   
 
 
-        // get optimal workspace size  
-magma_dgeev(MagmaVec,
-MagmaNoVec,
-n,
-NULL,
-lda,
-NULL,
-NULL,
-NULL,
-LDVL,
-NULL,
-LDVR,
-work,
--1,
-&info 
-);	
+  // get optimal workspace size  
+   magma_dgeev(MagmaVec, MagmaNoVec, n, NULL, lda, NULL, NULL, NULL, LDVL, NULL, LDVR, work, -1, &info );	
 
-//std::cout << info << std::endl;
-//std::cout << work[0] << std::endl;
-lwork = work[0];
-double *h_work;
-magma_dmalloc_cpu(&h_work, lwork);
-
-
-// Perform analysis 
-magma_dgeev(MagmaNoVec, MagmaVec, n, A, lda, rvalues_ptr, wl, VL, LDVL, rvectors_ptr, LDVR, h_work,
-              lwork, &info);
-
-
-
-
-//magma_dgeev(MagmaNoVec, MagmaVec, n, A, lda, rvalues_ptr, wl, VL, LDVL, VR, LDVR, h_work,
-//                 lwork, &info);
-std::cout << info << std::endl;
-
-
-
-// testing that this print statemetn is working correctly 
-std::cout << "eigenvalues ... " << std::endl;
-for(int i=0; i<n; i++){
-  std::cout << rvalues_ptr[i] << " " ;
-}
-std::cout << std::endl;
-
-std::cout << "eigenvectors ... " << std::endl;
-for(int i=0; i<25; i++){
-  std::cout << rvectors_ptr[i] << " " ;
-}
-std::cout << std::endl;
-std::cout << " contents of VR " << std::endl;
-magma_dprint(5,5, VR, n);
-
-
+   lwork = work[0];
+   double *h_work;
+     if ( MAGMA_SUCCESS != magma_dmalloc_cpu(&h_work, lwork) )
+     {
+        shrd_server->error_and_die(" MAGMA_EVD_SERVER Error: magma_dgeev_mgpu() magma_dmalloc_cpu failed for: h_work  " );
+     }
+ 
+  // Perform analysis 
+  if (shrd_server->_numgpus == 1) {
+       magma_dgeev(MagmaNoVec, MagmaVec, n, A, lda, rvalues_ptr, wl, VL, LDVL, rvectors_ptr, LDVR, h_work,
+                      lwork, &info);
+  } else {
+       magma_dgeev_m(MagmaNoVec, MagmaVec, n, A, lda, rvalues_ptr, wl, VL, LDVL, rvectors_ptr, LDVR, h_work,
+                      lwork, &info);
+  }
 
 
 
@@ -481,7 +493,7 @@ magma_free_cpu( VR);
 
 
 
-return 0;
+return (info) ;
  
 
  
