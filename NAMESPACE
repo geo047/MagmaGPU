@@ -1,4 +1,4 @@
-useDynLib(rcppMagmaNonSYEVD)
+useDynLib(MagmaGPU)
 exportPattern("^[[:alpha:]]+")
 import(Rcpp)
 

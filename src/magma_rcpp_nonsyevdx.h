@@ -6,7 +6,7 @@
  *		28/11/2012
  * 		02/04/2015 - update printout_devices_rcpp(bool) added to external accessible functions
  *    
- *      Description:  Header file for rcppMagmaSYEVD R library eigenvlaue decomposition functions.
+ *      Description:  Header file for MagmaGPU R library eigenvlaue decomposition functions.
  * 
  *		Required is the MAGMA library available (http://icl.cs.utk.edu/magma/)
  * 		compiled as position independent code with a multithreaded high performance LAPACK 

@@ -1,4 +1,4 @@
-#' @useDynLib rcppMagmaNonSYEVD
+#' @useDynLib MagmaGPU
 #' @importFrom Rcpp sourceCpp
 
 #' Creates the server executable.
@@ -16,8 +16,8 @@
 #' e.g. "environmentSetup="env MAGMA_HOME=/data/bow355/A_275ERCP_R_MAGMA/magma-1.7.0 CUDA_ROOT=/cm/shared/apps/cuda65/toolkit/6.5.14 "
 MakeServer <- function( environmentSetup="", target = "all" )
 { 
-  # R.home() system.file(package="rcppMagmaNonSYEVD") Sys.info()['sysname']
-  package_path <- path.package("rcppMagmaNonSYEVD")
+  # R.home() system.file(package="MagmaGPU") Sys.info()['sysname']
+  package_path <- path.package("MagmaGPU")
   server_src_path <- paste0(package_path,"/src")
      
   magma_path <- Sys.getenv("MAGMA_HOME")
@@ -76,11 +76,11 @@ RunServer <- function( environmentSetup="", numGPUsWanted=0,  matrixMaxDimension
      numGPUsWanted <- 0 
   }
   if (matrixMaxDimension <= 0 ) {
-    stop("MAGMA_EVD_CLIENT Error: rcppMagmaNonSYEVD::RunServer(): Input matrix dimension should specify the maximum size of a matrix to undergo eigenvalue decomposition")
+    stop("MAGMA_EVD_CLIENT Error: MagmaGPU::RunServer(): Input matrix dimension should specify the maximum size of a matrix to undergo eigenvalue decomposition")
   }
   
   if (print > 1) {
-    message("MAGMA_EVD_CLIENT Info: rcppMagmaNonSYEVD::RunServer(): Only print to screen is currently available")
+    message("MAGMA_EVD_CLIENT Info: MagmaGPU::RunServer(): Only print to screen is currently available")
     print <- 1 ;
   }
  
@@ -89,7 +89,7 @@ RunServer <- function( environmentSetup="", numGPUsWanted=0,  matrixMaxDimension
   server_exe_with_args <- GetServerArgs(matrixMaxDimension, withVectors=TRUE, numGPUsWanted, memName, semName, print )
   if (nchar(server_exe_with_args) == 0)
   {
-    stop("MAGMA_EVD_CLIENT Error: rcppMagmaNonSYEVD::RunServer(): Client could not get a server launch string")
+    stop("MAGMA_EVD_CLIENT Error: MagmaGPU::RunServer(): Client could not get a server launch string")
   }
   
   Sys.sleep(1) # Give the client time to create the shared memory region before launching the server that needs access to it
@@ -116,9 +116,9 @@ RunServer <- function( environmentSetup="", numGPUsWanted=0,  matrixMaxDimension
 
 .onAttach <- function(libname, pkgname) { 
   # Create the server executable if it does not exist
-  # packagepathstring <- libname ;# path.package ("rcppMagmaNonSYEVD");  
-  serverstring = paste0(libname,"/rcppMagmaNonSYEVD/bin/nonsyevd_server.exe")
- # file.exists(c("/home/bow355/R/library/rcppMagmaNonSYEVD/bin/nonsyevd_server"))
+  # packagepathstring <- libname ;# path.package ("MagmaGPU");  
+  serverstring = paste0(libname,"/MagmaGPU/bin/nonsyevd_server.exe")
+ # file.exists(c("/home/bow355/R/library/MagmaGPU/bin/nonsyevd_server"))
   if (!file.exists(serverstring)) {
     
      packageStartupMessage("MAGMA_EVD_CLIENT Info: server executable = ", serverstring, " Does not exist!, We will try to build it now.")
@@ -139,7 +139,7 @@ RunServer <- function( environmentSetup="", numGPUsWanted=0,  matrixMaxDimension
         MakeServer(environmentSetup=environmentSetup, target="dist-clean")  
         MakeServer(environmentSetup=environmentSetup, target="all")  
         MakeServer(environmentSetup=environmentSetup, target="install")  # this moves the executable to ./bin directory
-        packageStartupMessage("\t...the rcppMagmaNonSYEVD server executable was not found so we have attempted to rebuild")
+        packageStartupMessage("\t...the MagmaGPU server executable was not found so we have attempted to rebuild")
         if (file.exists(serverstring)) { 
           packageStartupMessage("\t MAGMA_EVD_CLIENT Info: It looks like we succeeded!") 
         } else {

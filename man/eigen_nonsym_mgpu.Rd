@@ -28,7 +28,7 @@ data is overwritten.
 The method involves the offload of the matrix data to a seperate syevd_server executable by copying data into a shared memory area and
 signalling to the server that the data is availble. This function will block until the server has completed the decomposition. The
 function checks that the input is square, however it does not check that the matrix is symmetric.
-N.B. The maximum size allowed of the input matrix is goverend by what was provided in the rcppMagmaNonSYEVD::RunServer() function. The server
+N.B. The maximum size allowed of the input matrix is goverend by what was provided in the MagmaGPU::RunServer() function. The server
 will automatically be restarted with a larger shared memory area if user wants to perorm EVD on a larger matrix.
 }
 

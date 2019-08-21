@@ -146,12 +146,12 @@ std::string GetServerArgs(int matrixDimension, bool withVectors, int numGPUsWant
   
   // Get directory containing the executable:
   Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];  // get the R function "path.package()"
-	SEXP retvect = pathpackage_rcpp ("rcppMagmaNonSYEVD");  // use the R function in C++ 
+	SEXP retvect = pathpackage_rcpp ("MagmaGPU");  // use the R function in C++ 
 	serverpathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
 	serverpathstring = serverpathstring + "/bin/nonsyevd_server.exe" ;
   if (!exists(serverpathstring))
   {
-    ss_string << " MAGMA_EVD_CLIENT Error: rcppMagmaNonSYEVD::GetServerArgs()  " << std::endl ;
+    ss_string << " MAGMA_EVD_CLIENT Error: MagmaGPU::GetServerArgs()  " << std::endl ;
     ss_string << "\t Server executable does not exist: " << serverpathstring << std::endl ;
     ss_string << "\t Please set up an appropriate environment and set the <package_dir>/src/make.inc file variables." << std::endl ; 
     ss_string << "\t The environment requires the ILP64 version of the MAGMA library to be installed and MAGMA_HOME to be be set." << std::endl ;
@@ -181,7 +181,7 @@ std::string GetServerArgs(int matrixDimension, bool withVectors, int numGPUsWant
 	return(ss_string.str()) ;
 	
 	// We get the server to check how many GPUs are present
-  // therefore we do not need CUDA/other interface to be present for compilation of the rcppMagmaNonSYEVD package
+  // therefore we do not need CUDA/other interface to be present for compilation of the MagmaGPU package
   
 }
 
@@ -194,7 +194,7 @@ std::string GetServerArgs(int matrixDimension, bool withVectors, int numGPUsWant
 //' The method involves the offload of the matrix data to a seperate nonsyevd_server executable by copying data into a shared memory area and 
 //' signalling to the server that the data is availble. This function will block until the server has completed the decomposition. The 
 //' function checks that the input is square, however it does not check that the matrix is non-symmetric.
-//' N.B. The maximum size allowed of the input matrix is goverend by what was provided in the rcppMagmaNonSYEVD::RunServer() function. The server 
+//' N.B. The maximum size allowed of the input matrix is goverend by what was provided in the MagmaGPU::RunServer() function. The server 
 //' will automatically be restarted with a larger shared memory area if user wants to perorm EVD on a larger matrix.
 //' @param matrix - the input matrix to be used in eigenvalue decomposition. It is assumed to be square 
 //' @param symmetric - the input is assumed to be non-symmetric and real. Function will fail if symmetric=TRUE.

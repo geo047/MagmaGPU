@@ -4,12 +4,12 @@
 #' Function signals to the server through shared memory region to terminate from 
 #' its main loop and then deletes the client CSharedMemory object
 StopServer <- function() {
-    invisible(.Call('rcppMagmaNonSYEVD_StopServer', PACKAGE = 'rcppMagmaNonSYEVD'))
+    invisible(.Call('MagmaGPU_StopServer', PACKAGE = 'MagmaGPU'))
 }
 
 #' Called when the package is unloaded or R terminated - it releases the shared memory objects that are used to communicate with the syevd_server executable
 .CleanupSharedMemory <- function() {
-    .Call('rcppMagmaNonSYEVD_CleanupSharedMemory', PACKAGE = 'rcppMagmaNonSYEVD')
+    .Call('MagmaGPU_CleanupSharedMemory', PACKAGE = 'MagmaGPU')
 }
 
 #' Initialise shared memory on client and obtain server launch string.
@@ -25,7 +25,7 @@ StopServer <- function() {
 #' @param printDetails      - type (integer 0|1|2) - 0 = don't print, 1 = print details of server progress to screen; 2 = print to log (not functional)
 #' @return                  - type (string) A string that can be used a command line arguments to run the nonsyevd_server executable
 GetServerArgs <- function(matrixDimension, withVectors, numGPUsWanted, memName, semName, printDetails) {
-    .Call('rcppMagmaNonSYEVD_GetServerArgs', PACKAGE = 'rcppMagmaNonSYEVD', matrixDimension, withVectors, numGPUsWanted, memName, semName, printDetails)
+    .Call('MagmaGPU_GetServerArgs', PACKAGE = 'MagmaGPU', matrixDimension, withVectors, numGPUsWanted, memName, semName, printDetails)
 }
 
 #' Function used to obtain the eigenvalue decomposition (EVD) of a matrix using a MAGMA 2-stage multi-gpu EVD algorithm
@@ -35,7 +35,7 @@ GetServerArgs <- function(matrixDimension, withVectors, numGPUsWanted, memName, 
 #' The method involves the offload of the matrix data to a seperate nonsyevd_server executable by copying data into a shared memory area and 
 #' signalling to the server that the data is availble. This function will block until the server has completed the decomposition. The 
 #' function checks that the input is square, however it does not check that the matrix is symmetric.
-#' N.B. The maximum size allowed of the input matrix is goverend by what was provided in the rcppMagmaNonSYEVD::RunServer() function. The server 
+#' N.B. The maximum size allowed of the input matrix is goverend by what was provided in the MagmaGPU::RunServer() function. The server 
 #' will automatically be restarted with a larger shared memory area if user wants to perorm EVD on a larger matrix.
 #' @param matrix - the input matrix to be used in eigenvalue decomposition. It is assumed to be square 
 #' @param symmetric - the input is assumed to be symmetric and real. Function will fail if symmetric=FALSE.
@@ -44,7 +44,7 @@ GetServerArgs <- function(matrixDimension, withVectors, numGPUsWanted, memName, 
 #' @param printInfo - Prints diagnostic information about the client processing
 #' @return A list that contains the eigenvalues and if requested the eignenvectors. If overwrite==TRUE then the eignevectors are copied into the ***input matrix***
 eigen_nonsym_mgpu <- function(matrix, symmetric = FALSE, only_values = FALSE, overwrite = FALSE, printInfo = FALSE) {
-    .Call('rcppMagmaNonSYEVD_eigen_nonsym_mgpu', PACKAGE = 'rcppMagmaNonSYEVD', matrix, symmetric, only_values, overwrite, printInfo)
+    .Call('MagmaGPU_eigen_nonsym_mgpu', PACKAGE = 'MagmaGPU', matrix, symmetric, only_values, overwrite, printInfo)
 }
 
 

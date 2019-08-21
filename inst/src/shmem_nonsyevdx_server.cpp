@@ -750,15 +750,15 @@ int print_devices( bool print_num_bool, std::string pathString)
       int major, minor;
       CUdevice dev;
 
-	  //Rcpp::Rcout << "rcppMagma: cuDeviceGet():" << std::endl ;
+	  //Rcpp::Rcout << "MagmaGPU: cuDeviceGet():" << std::endl ;
       cuDeviceGet( &dev, idevice );
-	  //Rcpp::Rcout << "rcppMagma: cuDeviceGetName():" << std::endl ;
+	  //Rcpp::Rcout << "MagmaGPU: cuDeviceGetName():" << std::endl ;
       cuDeviceGetName( name, sizeof(name), dev );
-	  //Rcpp::Rcout << "rcppMagma: cuDeviceComputeCapability():" << std::endl ;
+	  //Rcpp::Rcout << "MagmaGPU: cuDeviceComputeCapability():" << std::endl ;
       cuDeviceComputeCapability( &major, &minor, dev );
-	  //Rcpp::Rcout << "rcppMagma: cuDeviceTotalMem():" << std::endl ;
+	  //Rcpp::Rcout << "MagmaGPU: cuDeviceTotalMem():" << std::endl ;
       cuDeviceTotalMem( &totalMem, dev );
-	  //Rcpp::Rcout << "rcppMagma: cuDeviceGetAttribute():" << std::endl ;
+	  //Rcpp::Rcout << "MagmaGPU: cuDeviceGetAttribute():" << std::endl ;
       cuDeviceGetAttribute( &clock, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, dev );
 	  
       if (print_num_bool == true) 
@@ -918,7 +918,7 @@ int GetNumDevicesUsingOpenCL(std::string plat_str, int clDevType )
       std::cerr << " MAGMA_EVD_SERVER Error: GetNumDevicesUsingOpenCL() The platform that this package was built for does not seem to exist!" << std::endl ;
       std::cerr << " MAGMA_EVD_SERVER Error: platform requested: " << plat_str << std::endl ;
       std::cerr << " MAGMA_EVD_SERVER Error: Recompile the nonsyevd_server executable (using Make_SYEVD_Server()) specifying " << std::endl ;
-      std::cerr << " MAGMA_EVD_SERVER Error: an available platform (as seen above)in the <R_LIB>/rcppMagmaSYEVD/src/make.inc file " << std::endl ;
+      std::cerr << " MAGMA_EVD_SERVER Error: an available platform (as seen above)in the <R_LIB>/MagmaGPU/src/make.inc file " << std::endl ;
     }
 
 		platforms[platnum].getInfo((cl_platform_info) CL_PLATFORM_VENDOR, &platformVendor);

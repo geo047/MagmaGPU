@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // StopServer
 void StopServer();
-RcppExport SEXP rcppMagmaNonSYEVD_StopServer() {
+RcppExport SEXP MagmaGPU_StopServer() {
 BEGIN_RCPP
     StopServer();
     return R_NilValue;
@@ -15,7 +15,7 @@ END_RCPP
 }
 // CleanupSharedMemory
 int CleanupSharedMemory();
-RcppExport SEXP rcppMagmaNonSYEVD_CleanupSharedMemory() {
+RcppExport SEXP MagmaGPU_CleanupSharedMemory() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -25,7 +25,7 @@ END_RCPP
 }
 // GetServerArgs
 std::string GetServerArgs(int matrixDimension, bool withVectors, int numGPUsWanted, std::string memName, std::string semName, int printDetails);
-RcppExport SEXP rcppMagmaNonSYEVD_GetServerArgs(SEXP matrixDimensionSEXP, SEXP withVectorsSEXP, SEXP numGPUsWantedSEXP, SEXP memNameSEXP, SEXP semNameSEXP, SEXP printDetailsSEXP) {
+RcppExport SEXP MagmaGPU_GetServerArgs(SEXP matrixDimensionSEXP, SEXP withVectorsSEXP, SEXP numGPUsWantedSEXP, SEXP memNameSEXP, SEXP semNameSEXP, SEXP printDetailsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< int >::type matrixDimension(matrixDimensionSEXP);
@@ -40,7 +40,7 @@ END_RCPP
 }
 // eigen_nonsym_mgpu
 Rcpp::List eigen_nonsym_mgpu(Rcpp::NumericMatrix matrix, bool symmetric, bool only_values, bool overwrite, bool printInfo);
-RcppExport SEXP rcppMagmaNonSYEVD_eigen_nonsym_mgpu(SEXP matrixSEXP, SEXP symmetricSEXP, SEXP only_valuesSEXP, SEXP overwriteSEXP, SEXP printInfoSEXP) {
+RcppExport SEXP MagmaGPU_eigen_nonsym_mgpu(SEXP matrixSEXP, SEXP symmetricSEXP, SEXP only_valuesSEXP, SEXP overwriteSEXP, SEXP printInfoSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type matrix(matrixSEXP);

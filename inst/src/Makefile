@@ -1,4 +1,4 @@
-# Makefile file for rcppMagmaSYEVD server compilation
+# Makefile file for MagmaGPU server compilation
 
 PAC_DIR = ../bin
 SERVER_DIR = ..

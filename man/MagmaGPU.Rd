@@ -1,8 +1,8 @@
-\name{rcppMagmaNonSYEVD}
-\alias{rcppMagmaNonSYEVD}
+\name{MagmaGPU}
+\alias{MagmaGPU}
 \docType{package}
 \title{
- rcppMagmaNonSYEVD - provides a fast replacement for the eigen() function, using a 2 stage GPU based MAGMA library routine. Also provides a function that returns the sqrt and inverse sqrt of an input matrix.
+ MagmaGPU - provides a fast replacement for the eigen() function, using a 2 stage GPU based MAGMA library routine. Also provides a function that returns the sqrt and inverse sqrt of an input matrix.
 }
 \description{
 Implements the symmetric eigenvalue decomposition using the MAGMA library (http://icl.cs.utk.edu/magma/index.html) 2-stage multi-GPU implementation with 64 bit integer interface. Currently only for real symmetric matricies. In this case it provides a direct replacement for R function eigen(symmetric=T) and also provides an efficient function for producing the square root and inverse square root of the input matrix. The package uses the 64 bit integer MAGMA library by a client-server shared memory architecture. This removes the problem that can arrise with larger datasets where R only provides the 32 bit BLAS/LAPACK interface.  The server side code checks how many GPUs are present so the client side R package code does not require CUDA/other interface to be present. The server side code requires the MAGMA library to be available (http://icl.cs.utk.edu/magma/) compiled as position independent code (shared library) with a multi-threaded high performance LAPACK and -DMAGMA_ILP64 defined (an example make.inc file should be available in MAGMA download package). The server code also requires an OpenCL library to be installed which is used to get the number of GPUs present on a system. This package can be used in conjunction with HiPLARb and HiPLARM that require high performance, but single-threaded BLAS routines, which will then degrade the performance of some routines (such as eigen() and possibly svd()) which require a multi threaded BLAS to operate effectively.
@@ -17,7 +17,7 @@ Requires environment variables MAGMA_HOME to be set to where the MAGMA install i
 The CUDA version of MAGMA requires CUDA_ROOT to be set CUDA_ROOT=/usr/local/cuda is the default.
 The server code uses OpenCL to determine how many GPUs are present on the system it is being run on.
 The default platform string is stored in a file in <R library path>/rcppMagamSYEVD/extdata/platformstring.txt and contains the default platform string "NVidia", and the default device is set to "GPU". See the platformstring.txt file for other options.
-If these libraries and variables are set correctly then the server side code will be compiled automatically when the package is installed. If failing installation on install then whenerver the package is loaded into the R environment using library(rcppMagmaNonSYEVD) the system will attempt to compile the server code.
+If these libraries and variables are set correctly then the server side code will be compiled automatically when the package is installed. If failing installation on install then whenerver the package is loaded into the R environment using library(MagmaGPU) the system will attempt to compile the server code.
 
 
 N.B. Calling the eigen_nonsym_mgpu() function with argument overwrite=TRUE will cause an *overwrite of the input matrix data* with the eigenvectors of the original matrix data (if they are requested). This is done to potentialy reduce the memory footprint of the function. If overwrite=TRUE then please ensure the original matrix is copied if the data needs to be used after the function is called. Using overwrite=FALSE will return the usual list of results in $vectors and $values list items of the result object.
@@ -25,7 +25,7 @@ N.B. Calling the eigen_nonsym_mgpu() function with argument overwrite=TRUE will 
 }
 \details{
 \tabular{ll}{
-Package: \tab rcppMagmaNonSYEVD\cr
+Package: \tab MagmaGPU\cr
 Type: \tab Package\cr
 Version: \tab 1.0.0\cr
 Date: \tab 2016-02-01\cr
@@ -83,14 +83,14 @@ doi: 10.1109/SC.Companion.2012.173
 
 }
 
-\keyword{ rcppMagmaNonSYEVD, magma, MAGMA, eigen, GPU, EVD  }
+\keyword{ MagmaGPU, magma, MAGMA, eigen, GPU, EVD  }
 \seealso{
 eigen
 }
 \examples{
 
   n  <- 1000
-	library(rcppMagmaNonSYEVD)
+	library(MagmaGPU)
 	RunServer(numGPUsWanted=1, matrixMaxDimension=n, memName="/syevd_mem", semName="/syevd_sem", print=0)
 	set.seed(42)
         K <- matrix(sample(c(0,1), n*n, TRUE), nrow=n)
@@ -103,7 +103,7 @@ eigen
           res <- K %*% crossprod(Z, Z)
 
   # GPU based
-  eigGPU <- rcppMagmaNonSYEVD::eigen_nonsym_mgpu(res , symmetric = FALSE , only_values=FALSE)
+  eigGPU <- MagmaGPU::eigen_nonsym_mgpu(res , symmetric = FALSE , only_values=FALSE)
   indx <- order(eigGPU$values, decreasing=TRUE)
   eigGPU$vectors <-  eigGPU$vectors[, indx]
   eigGPU$values <- eigGPU$values[indx]

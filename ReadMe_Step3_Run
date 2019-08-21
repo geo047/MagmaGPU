@@ -15,10 +15,10 @@ for(ii in 1:(2*n)){
 res <- K %*% crossprod(Z, Z)
 
 # GPU based
- library(rcppMagmaNonSYEVD)
- rcppMagmaNonSYEVD::RunServer( matrixMaxDimension=n,  numGPUsWanted=ngpu, memName="/syevd_mem", semName="/syevd_sem", print=0)
+ library(MagmaGPU)
+ MagmaGPU::RunServer( matrixMaxDimension=n,  numGPUsWanted=ngpu, memName="/syevd_mem", semName="/syevd_sem", print=0)
 
-  eigGPU <- rcppMagmaNonSYEVD::eigen_nonsym_mgpu(res , symmetric = FALSE , only_values=FALSE)
+  eigGPU <- MagmaGPU::eigen_nonsym_mgpu(res , symmetric = FALSE , only_values=FALSE)
   indx <- order(eigGPU$values, decreasing=TRUE)
    eigGPU$vectors <-  eigGPU$vectors[, indx]
    eigGPU$values <- eigGPU$values[indx]
@@ -46,10 +46,10 @@ qr.X <- qr.Q(qr(X))
     t <- ncol(Z)
     q <- ncol(X)
 
- library(rcppMagmaNonSYEVD)
- rcppMagmaNonSYEVD::RunServer( matrixMaxDimension=dim(res)[1],  numGPUsWanted=ngpu, memName="/syevd_mem", semName="/syevd_sem", print=0)
+ library(MagmaGPU)
+ MagmaGPU::RunServer( matrixMaxDimension=dim(res)[1],  numGPUsWanted=ngpu, memName="/syevd_mem", semName="/syevd_sem", print=0)
 
- eigGPU <- rcppMagmaNonSYEVD::eigen_nonsym_mgpu(res , symmetric = FALSE , only_values=FALSE)
+ eigGPU <- MagmaGPU::eigen_nonsym_mgpu(res , symmetric = FALSE , only_values=FALSE)
  indx <- order(eigGPU$values, decreasing=TRUE)
  eigGPU$vectors <-  eigGPU$vectors[, indx]
  eigGPU$values <- eigGPU$values[indx]

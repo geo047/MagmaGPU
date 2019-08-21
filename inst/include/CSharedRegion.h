@@ -163,7 +163,7 @@ public:
 		}
 		else if (this->_clientOrServer == MAGMA_EVD_SERVER) // the input data consumer (although it also produces evdx results)
 		{
-      // N.B. the client (in R) must be created before the server. This is done using the rcppMagmaSVD:::RunServer() R function.
+      // N.B. the client (in R) must be created before the server. This is done using the MagmaGPU:::RunServer() R function.
       // The RunServer function calls GetServerArgs() Rcpp function, that creates the client CSharedMemory object and then launches the 
       // server using a system() call.
       // The server will block as the semaphore was created by the client in the 0 state, until the client calls sem_post(), which it will do
@@ -587,7 +587,7 @@ public:
 	{
 		// Getting the path to the package kernel file (<packagedir>/include) can be fun
 		Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];
-		SEXP retvect = pathpackage_rcpp ("rcppMagmaNonSYEVD");  // use the R function in C++ 
+		SEXP retvect = pathpackage_rcpp ("MagmaGPU");  // use the R function in C++ 
 		_datapathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
 		// _oclcode_pathstring = "f:/R/R-3.2.2/library/Harman" ;
 		_datapathstring = _datapathstring +"/src" ;
@@ -597,7 +597,7 @@ public:
 	{
 		// Getting the path to the package kernel file (<packagedir>/include) can be fun
 		Rcpp::Function pathpackage_rcpp = Rcpp::Environment::base_env()["path.package"];
-		SEXP retvect = pathpackage_rcpp ("rcppMagmaNonSYEVD");  // use the R function in C++ 
+		SEXP retvect = pathpackage_rcpp ("MagmaGPU");  // use the R function in C++ 
 		_datapathstring = Rcpp::as<std::string>(retvect) ; // convert from SEXP to C++ type
 		// _oclcode_pathstring = "f:/R/R-3.2.2/library/Harman" ;
 		_datapathstring = _datapathstring +"/src" ;
