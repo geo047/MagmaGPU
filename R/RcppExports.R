@@ -69,6 +69,9 @@ eigen_mgpu <- function(matrix, symmetric = TRUE, only_values = FALSE, overwrite 
 }
 
 
+solve_mgpu <- function(matrix){
+.Call('MagmaGPU_solve_mgpu', PACKAGE = 'MagmaGPU', matrix )
+}
 
 
 

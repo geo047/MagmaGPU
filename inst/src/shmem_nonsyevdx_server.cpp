@@ -48,8 +48,11 @@
 int  server_init( std::string pathString, bool print )  ;
 std::string Get_ERROR_STR( int  errorin ) ;
 void server_close( )  ;
+
 int server_compute_dgeev_mgpu(  hideprintlog hideorprint  ) ;  // This function internally uses the static CSharedRegion * shrd_server object
 int server_compute_syevdx_mgpu(  hideprintlog hideorprint  ) ;  // This function internally uses the static CSharedRegion * shrd_server object
+int server_compute_solve_mgpu(  hideprintlog hideorprint  ) ;  // This function internally uses the static CSharedRegion * shrd_server object
+
 int print_devices( bool print_num_bool, std::string pathString) ;
 int GetNumDevicesUsingOpenCL(std::string plat_str, int clDevType ) ;
 int GetNumDevicesUsingOpenCL_C(std::string plat_str, int clDevType ) ;
@@ -119,6 +122,23 @@ magma_dsyevdx_2stage_m(
     #endif
     magma_int_t *iwork, magma_int_t liwork,
     magma_int_t *info);
+
+
+extern magma_int_t 
+magma_dgetri_gpu(magma_int_t n,
+magmaDouble_ptr dA,
+magma_int_t ldda,
+magma_int_t*  ipiv,
+magmaDouble_ptr  dwork,
+magma_int_t lwork,
+magma_int_t* info 
+)	
+
+
+
+
+
+
 }
 
 

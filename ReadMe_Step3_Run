@@ -1,7 +1,7 @@
 
 # setup
 set.seed(101)
-n <- 1000
+n <- 100
 ngpu <- 4
 K <- matrix(sample(c(0,1), n*n, T), nrow=n)
 K <- tcrossprod(K)

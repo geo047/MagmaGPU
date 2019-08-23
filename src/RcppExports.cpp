@@ -67,3 +67,16 @@ BEGIN_RCPP
 END_RCPP
 }
 
+// solve_mgpu
+Rcpp::List solve_mgpu(Rcpp::NumericMatrix matrix);
+RcppExport SEXP MagmaGPU_solve_mgpu(SEXP matrixSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type matrix(matrixSEXP);
+    rcpp_result_gen = Rcpp::wrap(solve_mgpu(matrix ));
+    return rcpp_result_gen;
+END_RCPP
+}
+
+
+
